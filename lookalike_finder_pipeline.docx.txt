@@ -1,0 +1,963 @@
+﻿Lookalike Finder
+Pipeline Documentation
+Поиск потенциальных клиентов Interexy на основе анализа портфолио-кейсов
+Параметр
+	Значение
+	Версия
+	1.0
+	LLM
+	OpenAI GPT-4o / GPT-4o-mini
+	Поиск
+	Serper API (Google Search)
+	Парсинг
+	Jina Reader (r.jina.ai)
+	Контакты
+	Apollo API
+	Целевой кейс
+	MedKitDoc · Metrikus · E.ON
+	
+
+Обзор пайплайна
+Пайплайн автоматически находит компании — потенциальных клиентов Interexy — на основе портфолио-кейсов. Для каждого кейса система строит детальный технический профиль, генерирует поисковые запросы, парсит сайты найденных компаний, сравнивает их с профилем и расставляет тиры близости. Tier 1–2 получают углублённый ресёрч с поиском decision makers.
+
+
+Шаг
+	Название
+	Что происходит
+	Инструмент
+	1
+	Анализ кейса
+	Изучаем кейс Interexy: что построили, стек, рынок
+	Jina Reader + OpenAI
+	2
+	Профиль компании-клиента
+	Строим детальный профиль по кейсу через Serper
+	Serper + OpenAI
+	3
+	Генерация запросов
+	LLM генерирует поисковые запросы для поиска похожих
+	OpenAI GPT-4o
+	4
+	Поиск и парсинг
+	Serper ищет компании, Jina парсит их сайты
+	Serper + Jina Reader
+	5
+	Тиеринг
+	LLM сравнивает каждую компанию с профилем
+	OpenAI GPT-4o
+	6
+	Deep research
+	Для Tier 1–2: новости, funding, decision makers
+	Apollo + Serper
+	7
+	Структурированный вывод
+	JSON-база с тирами, профилями, контактами
+	OpenAI GPT-4o
+	
+
+Шаг 1 — Анализ кейса Interexy
+1
+	Case Analysis
+Читаем портфолио-страницу кейса, извлекаем технический профиль через OpenAI
+	
+
+На входе — URL кейса на сайте Interexy (или текст вручную). Jina Reader извлекает чистый текст страницы, затем OpenAI структурирует его в JSON-профиль.
+1.1 Извлечение текста кейса
+python
+import requests, os
+from openai import OpenAI
+ 
+JINA_KEY   = os.environ["JINA_API_KEY"]
+OPENAI_KEY = os.environ["OPENAI_API_KEY"]
+client = OpenAI(api_key=OPENAI_KEY)
+ 
+def fetch_case_text(case_url: str) -> str:
+    """Читает страницу кейса через Jina Reader."""
+    headers = {
+        "Authorization": f"Bearer {JINA_KEY}",
+        "Accept": "application/json",
+        "X-Return-Format": "markdown"
+    }
+    r = requests.get(f"https://r.jina.ai/{case_url}", headers=headers)
+    r.raise_for_status()
+    return r.json()["data"]["content"]
+
+
+1.2 Промпт — построение профиля кейса
+python
+CASE_ANALYSIS_SYSTEM = """
+Ты — аналитик B2B software development рынка.
+На входе — текст кейса аутсорс-компании Interexy.
+Твоя задача: извлечь структурированный технический профиль.
+Верни ТОЛЬКО валидный JSON без markdown-блоков.
+"""
+ 
+CASE_ANALYSIS_USER = """
+Проанализируй кейс и верни JSON следующей структуры:
+{
+  "case_name": "название кейса",
+  "client_company": "имя компании-клиента",
+  "product_type": "тип продукта (mobile app / web platform / IoT / etc)",
+  "product_description": "1-2 предложения что именно построили",
+  "tech_stack": ["Swift", "Node.js", ...],
+  "integrations": ["Bluetooth SDK", "WebRTC", ...],
+  "platform": ["iOS", "Android", "Web"],
+  "business_model": "B2B SaaS / B2C / marketplace / etc",
+  "vertical": "Healthcare / PropTech / Energy / etc",
+  "region": "DACH / UK / US / EU",
+  "client_stage": "startup / scaleup / enterprise",
+  "key_challenges": ["Bluetooth UX", "GDPR compliance", ...],
+  "outcome": "результат: инвестиции / лончи / метрики"
+}
+ 
+Кейс:
+{case_text}
+"""
+ 
+def analyze_case(case_text: str) -> dict:
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0,
+        messages=[
+            {"role": "system", "content": CASE_ANALYSIS_SYSTEM},
+            {"role": "user",   "content": CASE_ANALYSIS_USER.format(case_text=case_text[:8000])}
+        ]
+    )
+    import json
+    return json.loads(resp.choices[0].message.content)
+
+
+1.3 Пример вывода для MedKitDoc
+json
+{
+  "case_name": "MedKitDoc",
+  "client_company": "MedKitDoc GmbH",
+  "product_type": "mobile app",
+  "product_description": "iOS-приложение для B2B телемедицины с реал-тайм
+    интеграцией Bluetooth медицинских устройств (пульсоксиметр, стетоскоп).
+    Видеоконсультации + передача данных устройств врачу в реальном времени.",
+  "tech_stack": ["Swift", "Xcode", "WebRTC"],
+  "integrations": ["Bluetooth SDK", "Medical device APIs", "Video streaming"],
+  "platform": ["iOS", "iPad"],
+  "business_model": "B2B SaaS",
+  "vertical": "Healthcare / Telemedicine",
+  "region": "DACH",
+  "client_stage": "startup",
+  "key_challenges": [
+    "Bluetooth UX при обрывах соединения",
+    "Отдельные UX-флоу для врача и пациента",
+    "Немецкие healthcare compliance стандарты"
+  ],
+  "outcome": "MVP за 4 мес, €500k pre-seed, multi-million seed через 14 мес"
+}
+Шаг 2 — Профиль компании-клиента
+2
+	Client Company Profile
+Serper собирает публичную информацию о компании из кейса, LLM строит полный профиль
+	
+
+Зная имя компании из шага 1, делаем несколько Serper-запросов: funding, новости, LinkedIn, стек. LLM синтезирует в единый профиль потенциального клиента.
+queries генерируется gpt-4o для нескольких запросов по базовой компании. (как в шаге 3), но только для базовой компании по которой формируется профиль.
+2.1 Serper — сбор информации о компании
+python
+SERPER_KEY = os.environ["SERPER_KEY"]
+ 
+def serper_search(query: str, num: int = 5) -> list[dict]:
+    r = requests.post(
+        "https://google.serper.dev/search",
+        headers={"X-API-KEY": SERPER_KEY, "Content-Type": "application/json"},
+        json={"q": query, "num": num, "gl": "us", "hl": "en"}
+    )
+    r.raise_for_status()
+    return r.json().get("organic", [])
+ 
+def collect_company_intel(company_name: str) -> list[dict]:
+    """Собирает разностороннюю информацию о компании через Serper."""
+    queries = [
+        f"{company_name} funding investors",
+        f"{company_name} product features technology stack",
+        f"{company_name} team CEO CTO founder",
+        f"{company_name} news 2024 2025",
+        f"site:linkedin.com {company_name}",
+    ]
+    all_results = []
+    for q in queries:
+        hits = serper_search(q, num=3)
+        for h in hits:
+            all_results.append({
+                "query": q,
+                "title": h.get("title", ""),
+                "snippet": h.get("snippet", ""),
+                "url": h.get("link", ""),
+            })
+    return all_results
+
+
+2.2 Промпт — построение профиля клиента
+python
+CLIENT_PROFILE_SYSTEM = """
+Ты — B2B sales analyst.
+Строишь детальный профиль компании для outreach.
+Отвечай ТОЛЬКО валидным JSON без markdown-блоков.
+"""
+ 
+CLIENT_PROFILE_USER = """
+По результатам поиска ниже построй профиль компании {company_name}.
+ 
+Результаты поиска:
+{search_results}
+ 
+Верни JSON:
+{
+  "company_name": "...",
+  "website": "...",
+  "founded": "год",
+  "stage": "seed / Series A / scaleup / enterprise",
+  "total_funding": "сумма или unknown",
+  "last_round": {"amount": "...", "date": "...", "investors": [...]},
+  "product_description": "что делает продукт",
+  "tech_stack_known": ["технологии если известны"],
+  "team_size": "примерный размер",
+  "key_people": [{"name": "...", "title": "...", "linkedin": "..."}],
+  "region": "...",
+  "vertical": "...",
+  "business_model": "...",
+  "outsource_signals": ["список сигналов что ищут разработчика или open to it"]
+}
+"""
+ 
+def build_client_profile(company_name: str, search_results: list) -> dict:
+    results_text = "\n".join(
+        f"[{r['query']}] {r['title']}: {r['snippet']}"
+        for r in search_results
+    )
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0,
+        messages=[
+            {"role": "system", "content": CLIENT_PROFILE_SYSTEM},
+            {"role": "user", "content": CLIENT_PROFILE_USER.format(
+                company_name=company_name,
+                search_results=results_text[:6000]
+            )}
+        ]
+    )
+    import json
+    return json.loads(resp.choices[0].message.content)
+Шаг 3 — Генерация поисковых запросов
+3
+	Query Generation
+OpenAI генерирует точные Serper-запросы на основе профиля кейса
+	
+
+LLM получает профиль кейса из шага 1 и генерирует набор специализированных запросов для поиска похожих компаний. Запросы покрывают разные углы: технологию, бизнес-модель, рынок, сигналы найма.
+3.1 Промпт — генерация запросов
+python
+QUERY_GEN_SYSTEM = """
+Ты — эксперт по B2B lead generation и технологическому рынку.
+Генерируешь точные поисковые запросы для Google (через Serper API).
+Цель: найти стартапы и компании, которые строят похожий продукт
+и могут нуждаться во внешней команде разработчиков.
+Верни ТОЛЬКО JSON-массив строк без пояснений.
+"""
+ 
+QUERY_GEN_USER = """
+На основе профиля кейса сгенерируй 10 поисковых запросов для Google.
+ 
+Профиль кейса:
+{case_profile}
+ 
+Правила для запросов:
+- НЕ используй общие слова ("app development company")
+- Используй конкретные технические термины из профиля
+- Покрой разные углы: по технологии, по вертикали, по стадии, по найму
+- Некоторые запросы должны искать компании на стадии поиска разработчика
+  (funding announcement, hiring CTO, MVP development)
+- Включи 2-3 запроса с site:linkedin.com для поиска стартапов
+ 
+Пример хороших запросов для telehealth + Bluetooth:
+["B2B telemedicine Bluetooth medical devices mobile app startup 2024",
+ "remote patient monitoring IoT mobile app seed funding Germany",
+ "site:linkedin.com telemedicine Bluetooth wearables B2B startup"]
+ 
+Верни JSON-массив из 10 запросов.
+"""
+ 
+def generate_search_queries(case_profile: dict) -> list[str]:
+    import json
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.3,
+        messages=[
+            {"role": "system", "content": QUERY_GEN_SYSTEM},
+            {"role": "user",   "content": QUERY_GEN_USER.format(
+                case_profile=json.dumps(case_profile, ensure_ascii=False, indent=2)
+            )}
+        ]
+    )
+    return json.loads(resp.choices[0].message.content)
+
+
+3.2 Пример вывода для MedKitDoc
+json
+[
+  "B2B telemedicine Bluetooth medical devices mobile app startup 2024",
+  "remote patient monitoring IoT app DACH startup seed funding",
+  "telehealth video consultation Bluetooth wearables B2B SaaS",
+  "digital health startup Bluetooth stethoscope oximeter mobile iOS",
+  "site:linkedin.com telemedicine Bluetooth medical device startup Germany",
+  "connected medical devices video consultation platform Series A",
+  "IoMT telehealth platform mobile app outsource development",
+  "B2B healthcare app Bluetooth integration MVP startup investor",
+  "Telemedizin Bluetooth Medizingeräte App Startup Finanzierung",
+  "remote diagnostics mobile app real-time medical sensor data"
+]
+Шаг 4 — Поиск и парсинг сайтов
+4
+	Search & Parse
+Serper находит компании по запросам, Jina Reader читает их сайты
+	
+
+По каждому запросу Serper возвращает топ-5 результатов. Дедупликация по URL. Jina Reader параллельно читает сайты всех найденных компаний и извлекает чистый текст для анализа.
+4.1 Сбор компаний через Serper
+python
+from concurrent.futures import ThreadPoolExecutor
+from urllib.parse import urlparse
+ 
+def search_companies(queries: list[str]) -> list[dict]:
+    """Ищет компании по всем запросам, дедуплицирует по домену."""
+    all_results = []
+    for q in queries:
+        hits = serper_search(q, num=5)
+        for h in hits:
+            all_results.append({
+                "url":     h.get("link", ""),
+                "title":   h.get("title", ""),
+                "snippet": h.get("snippet", ""),
+                "query":   q,
+            })
+ 
+    # Дедупликация по корневому домену
+    seen_domains = set()
+    unique = []
+    for r in all_results:
+        domain = urlparse(r["url"]).netloc.replace("www.", "")
+        if domain and domain not in seen_domains:
+            seen_domains.add(domain)
+            r["domain"] = domain
+            unique.append(r)
+    return unique
+
+
+4.2 Параллельный парсинг через Jina Reader
+python
+def jina_read(url: str) -> str:
+    """Читает сайт компании через Jina Reader, возвращает Markdown."""
+    try:
+        headers = {
+            "Authorization": f"Bearer {JINA_KEY}",
+            "Accept": "application/json",
+            "X-Return-Format": "markdown",
+            "X-Timeout": "15"
+        }
+        r = requests.get(f"https://r.jina.ai/{url}", headers=headers, timeout=20)
+        if r.status_code == 200:
+            data = r.json()
+            return data.get("data", {}).get("content", "")[:5000]
+        return ""
+    except Exception:
+        return ""
+ 
+def parse_all_companies(companies: list[dict]) -> list[dict]:
+    """Параллельно парсит сайты всех найденных компаний."""
+    def enrich(company):
+        company["page_content"] = jina_read(company["url"])
+        return company
+ 
+    with ThreadPoolExecutor(max_workers=8) as ex:
+        return list(ex.map(enrich, companies))
+
+
+4.3 Фильтрация нерелевантных результатов
+До тиеринга отфильтровываем явный мусор: новостные агрегаторы, маркетплейсы разработчиков, сами dev-агентства. Это делает LLM быстрой pre-filter проверкой на gpt-4o-mini (дёшево).
+python
+PREFILTER_PROMPT = """
+Ответь ТОЛЬКО "yes" или "no".
+Является ли эта страница сайтом реального продуктового стартапа или компании,
+которая строит свой продукт (не dev-агентства, не новостные сайты,
+не маркетплейсы разработчиков)?
+ 
+URL: {url}
+Заголовок: {title}
+Сниппет: {snippet}
+Контент (первые 500 символов): {content}
+"""
+ 
+def is_relevant_company(company: dict) -> bool:
+    resp = client.chat.completions.create(
+        model="gpt-4o-mini",
+        temperature=0,
+        messages=[{"role": "user", "content": PREFILTER_PROMPT.format(
+            url=company["url"],
+            title=company["title"],
+            snippet=company["snippet"],
+            content=company.get("page_content", "")[:500]
+        )}]
+    )
+    return resp.choices[0].message.content.strip().lower() == "yes"
+Шаг 5 — Тиеринг компаний
+5
+	Tiering
+LLM сравнивает каждую компанию с профилем кейса и присваивает тир
+	
+
+5.1 Определение тиров
+Тир
+	Название
+	Критерий
+	T1
+	Горячий лид
+	Тот же тип продукта + явные сигналы найма разработчика (вакансии, недавний раунд, нет tech co-founder)
+	T2
+	Тёплый лид
+	Тот же тип продукта, нет явных сигналов найма — но профиль компании совпадает
+	T3
+	Похожая вертикаль
+	Смежный продукт в той же отрасли — другая технология или другой сегмент рынка
+	T4
+	Слабое совпадение
+	Другая вертикаль, но подходит под экспертизу Interexy (IoT, mobile, compliance)
+	—
+	Нерелевантен
+	Продукт не совпадает или это dev-агентство / новостной сайт
+	
+
+5.2 Промпт тиеринга
+python
+TIERING_SYSTEM = """
+Ты — B2B sales analyst для аутсорс-компании Interexy.
+Interexy строит мобильные и веб-приложения для стартапов:
+специализация — Healthcare, IoT, Blockchain, FinTech.
+Твоя задача: оценить насколько компания похожа на
+существующего клиента Interexy и определить её тир.
+Отвечай ТОЛЬКО валидным JSON без markdown.
+"""
+ 
+TIERING_USER = """
+Профиль кейса Interexy (эталон для сравнения):
+{case_profile}
+ 
+Компания для оценки:
+URL: {url}
+Название: {title}
+Сниппет из поиска: {snippet}
+Контент сайта:
+{page_content}
+ 
+Определи тир и верни JSON:
+{
+  "company_name": "название компании",
+  "website": "url",
+  "tier": "T1" | "T2" | "T3" | "T4" | "none",
+  "tier_reason": "2-3 предложения почему именно этот тир",
+  "product_match": "краткое описание совпадения продукта",
+  "outsource_signals": ["список сигналов что ищут разработчика"],
+  "tech_overlap": ["пересечение технологий"],
+  "vertical": "вертикаль компании",
+  "region": "регион компании",
+  "stage": "стадия компании",
+  "confidence": 0.0-1.0
+}
+"""
+ 
+def tier_company(company: dict, case_profile: dict) -> dict:
+    import json
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0,
+        messages=[
+            {"role": "system", "content": TIERING_SYSTEM},
+            {"role": "user",   "content": TIERING_USER.format(
+                case_profile=json.dumps(case_profile, ensure_ascii=False),
+                url=company["url"],
+                title=company["title"],
+                snippet=company["snippet"],
+                page_content=company.get("page_content", "")[:3000]
+            )}
+        ]
+    )
+    result = json.loads(resp.choices[0].message.content)
+    result["source_query"] = company.get("query", "")
+    return result
+ 
+def tier_all_companies(companies: list[dict], case_profile: dict) -> dict:
+    """Тирирует все компании, возвращает словарь {T1: [...], T2: [...], ...}"""
+    tiered = {"T1": [], "T2": [], "T3": [], "T4": [], "none": []}
+ 
+    with ThreadPoolExecutor(max_workers=5) as ex:
+        results = list(ex.map(
+            lambda c: tier_company(c, case_profile),
+            companies
+        ))
+ 
+    for r in results:
+        tier = r.get("tier", "none")
+        tiered.get(tier, tiered["none"]).append(r)
+ 
+    # Сортируем внутри каждого тира по confidence
+    for tier in tiered:
+        tiered[tier].sort(key=lambda x: x.get("confidence", 0), reverse=True)
+ 
+    return tiered
+Шаг 6 — Deep Research для Tier 1–2
+6
+	Deep Research
+Для горячих и тёплых лидов: новости, funding, decision makers через Apollo
+	
+
+Компании Tier 1 и Tier 2 получают углублённый ресёрч. Для каждой компании: дополнительный Serper-поиск (funding, вакансии, новости), затем Apollo — поиск CTO / VP Engineering / Head of Product.
+6.1 Углублённый Serper-ресёрч
+python
+def deep_research_company(company: dict) -> dict:
+    """Собирает дополнительную информацию для Tier 1-2 компании."""
+    name = company.get("company_name", "")
+    domain = company.get("website", "").replace("https://", "").replace("www.", "").split("/")[0]
+ 
+    research_queries = [
+        f'"{name}" funding round 2024 2025',
+        f'"{name}" hiring CTO "VP Engineering" OR "Head of Product"',
+        f'"{name}" crunchbase',
+        f'site:linkedin.com/in "{name}"',
+    ]
+ 
+    snippets = []
+    for q in research_queries:
+        hits = serper_search(q, num=3)
+        for h in hits:
+            snippets.append(f"{h.get('title','')}: {h.get('snippet','')}")
+ 
+    company["deep_research_snippets"] = snippets
+    return company
+
+
+6.2 Apollo — поиск decision makers
+python
+APOLLO_KEY = os.environ["APOLLO_API_KEY"]
+ 
+def find_decision_makers(domain: str) -> list[dict]:
+    """Ищет CTO / VP Engineering / Head of Product через Apollo."""
+    url = "https://api.apollo.io/api/v1/mixed_people/search"
+    headers = {
+        "x-api-key": APOLLO_KEY,
+        "Content-Type": "application/json",
+        "accept": "application/json",
+    }
+    payload = {
+        "organization_domains": [domain],
+        "person_titles": [
+            "CTO",
+            "Chief Technology Officer",
+            "VP Engineering",
+            "VP of Engineering",
+            "Head of Product",
+            "VP Product",
+            "Co-Founder",
+            "Founder",
+        ],
+        "page": 1,
+        "per_page": 5,
+    }
+    try:
+        r = requests.post(url, json=payload, headers=headers)
+        r.raise_for_status()
+        people = r.json().get("people", [])
+        return [{
+            "name":     p.get("name"),
+            "title":    p.get("title"),
+            "email":    p.get("email"),
+            "linkedin": p.get("linkedin_url"),
+            "city":     p.get("city"),
+        } for p in people]
+    except Exception as e:
+        print(f"Apollo error for {domain}: {e}")
+        return []
+ 
+def enrich_tier1_tier2(tiered: dict) -> dict:
+    """Запускает deep research для T1 и T2."""
+    for tier in ["T1", "T2"]:
+        for company in tiered[tier]:
+            company = deep_research_company(company)
+            domain = company.get("website", "").replace("https://", "").replace("www.", "").split("/")[0]
+            company["decision_makers"] = find_decision_makers(domain)
+    return tiered
+Шаг 7 — Структурированный вывод
+7
+	Structured Output
+LLM генерирует value proposition для каждой компании, формирует финальную базу
+	
+
+7.1 Генерация value proposition
+python
+VP_SYSTEM = """
+Ты — B2B sales copywriter.
+Пишешь первое outreach-сообщение от аутсорс-компании Interexy.
+Тон: профессиональный, конкретный, без продажных клише.
+Язык: английский.
+Длина: 3-4 предложения.
+"""
+ 
+VP_USER = """
+Наш кейс (что мы построили):
+{case_summary}
+ 
+Компания получателя:
+Название: {company_name}
+Продукт: {product_match}
+Контакт: {contact_name}, {contact_title}
+ 
+Напиши 3-4 предложения для первого outreach.
+Упомяни конкретику: наш кейс + их продукт.
+Не используй "I hope this email finds you well" и подобное.
+"""
+ 
+def generate_value_prop(company: dict, case_profile: dict) -> str:
+    contact = (company.get("decision_makers") or [{}])[0]
+    case_summary = (
+        f"Мы построили {case_profile['product_description']} "
+        f"для {case_profile['client_company']}. "
+        f"Стек: {', '.join(case_profile['tech_stack'][:4])}."
+    )
+    resp = client.chat.completions.create(
+        model="gpt-4o",
+        temperature=0.4,
+        messages=[
+            {"role": "system", "content": VP_SYSTEM},
+            {"role": "user",   "content": VP_USER.format(
+                case_summary=case_summary,
+                company_name=company.get("company_name", ""),
+                product_match=company.get("product_match", ""),
+                contact_name=contact.get("name", "there"),
+                contact_title=contact.get("title", ""),
+            )}
+        ]
+    )
+    return resp.choices[0].message.content.strip()
+
+
+7.2 Формат финального JSON-вывода
+json
+{
+  "case_name": "MedKitDoc",
+  "run_date": "2025-04-03",
+  "total_found": 47,
+  "tiers": {
+    "T1": [
+      {
+        "company_name": "DocuMed GmbH",
+        "website": "https://documed.de",
+        "tier": "T1",
+        "tier_reason": "B2B telehealth стартап с IoT-устройствами, ищет iOS-разработчика",
+        "product_match": "Видеоконсультации + подключаемые Bluetooth-устройства",
+        "outsource_signals": ["Открыта вакансия iOS Developer", "Недавний seed раунд €1M"],
+        "tech_overlap": ["Bluetooth", "iOS", "Video streaming"],
+        "vertical": "Healthcare / Telemedicine",
+        "region": "Germany",
+        "stage": "seed",
+        "confidence": 0.91,
+        "decision_makers": [
+          {
+            "name": "Thomas Müller",
+            "title": "CTO",
+            "email": "t.mueller@documed.de",
+            "linkedin": "https://linkedin.com/in/thomasmueller"
+          }
+        ],
+        "value_proposition": "We built MedKitDoc — a B2B telemedicine iOS app...",
+        "source_query": "B2B telemedicine Bluetooth medical devices mobile app startup 2024"
+      }
+    ],
+    "T2": [...],
+    "T3": [...],
+    "T4": [...]
+  }
+}
+
+
+7.3 Сохранение результатов
+python
+import json
+from datetime import date
+ 
+def build_final_output(tiered: dict, case_profile: dict) -> dict:
+    """Добавляет value prop для T1-T2, формирует итоговую структуру."""
+    for tier in ["T1", "T2"]:
+        for company in tiered[tier]:
+            company["value_proposition"] = generate_value_prop(company, case_profile)
+ 
+    total = sum(len(v) for v in tiered.values())
+    return {
+        "case_name":    case_profile["case_name"],
+        "run_date":     str(date.today()),
+        "total_found":  total,
+        "tiers":        tiered,
+    }
+ 
+def save_output(output: dict, path: str = None):
+    filename = path or f"output_{output['case_name']}_{output['run_date']}.json"
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(output, f, ensure_ascii=False, indent=2)
+    print(f"Saved: {filename}")
+    print(f"T1: {len(output['tiers']['T1'])} | T2: {len(output['tiers']['T2'])} | "
+          f"T3: {len(output['tiers']['T3'])} | T4: {len(output['tiers']['T4'])}")
+Полный пайплайн — точка входа
+Функция run_pipeline() запускает все 7 шагов последовательно для одного кейса.
+python
+def run_pipeline(case_url: str) -> dict:
+    """
+    Полный пайплайн Lookalike Finder.
+    Принимает URL кейса Interexy, возвращает структурированную базу.
+    """
+    print(f"[1/7] Fetching case from {case_url}...")
+    case_text = fetch_case_text(case_url)
+ 
+    print("[1/7] Analyzing case with OpenAI...")
+    case_profile = analyze_case(case_text)
+    print(f"      Case: {case_profile['case_name']} | {case_profile['vertical']}")
+ 
+    print("[2/7] Building client company profile...")
+    intel = collect_company_intel(case_profile["client_company"])
+    client_profile = build_client_profile(case_profile["client_company"], intel)
+    case_profile["client_profile"] = client_profile
+ 
+    print("[3/7] Generating search queries...")
+    queries = generate_search_queries(case_profile)
+    print(f"      Generated {len(queries)} queries")
+ 
+    print("[4/7] Searching and parsing companies...")
+    raw_companies = search_companies(queries)
+    print(f"      Found {len(raw_companies)} unique domains")
+    companies = parse_all_companies(raw_companies)
+ 
+    print("[4/7] Pre-filtering irrelevant results...")
+    companies = [c for c in companies if is_relevant_company(c)]
+    print(f"      After filter: {len(companies)} companies")
+ 
+    print("[5/7] Tiering companies...")
+    tiered = tier_all_companies(companies, case_profile)
+    for t, lst in tiered.items():
+        if t != "none":
+            print(f"      {t}: {len(lst)}")
+ 
+    print("[6/7] Deep research for T1-T2...")
+    tiered = enrich_tier1_tier2(tiered)
+ 
+    print("[7/7] Generating value propositions and saving...")
+    output = build_final_output(tiered, case_profile)
+    save_output(output)
+ 
+    return output
+ 
+ 
+if __name__ == "__main__":
+    # Запуск для всех трёх кейсов
+    cases = [
+        "https://interexy.com/case/medkitdoc",
+        "https://interexy.com/case/metrikus",
+        "https://interexy.com/case/eon",
+    ]
+    for url in cases:
+        result = run_pipeline(url)
+        print(f"Done: {result['case_name']} — {result['total_found']} companies found\n")
+Конфигурация и стоимость
+Переменные окружения (.env)
+.env
+OPENAI_API_KEY=sk-...
+SERPER_API_KEY=...
+JINA_API_KEY=jina_...
+APOLLO_API_KEY=...
+
+
+Зависимости
+bash
+pip install openai requests python-dotenv
+
+
+Примерная стоимость на один кейс
+
+
+Инструмент
+	Операция
+	Кол-во
+	Цена
+	Serper
+	Поиск по 10 запросам + deep research
+	~30 запросов
+	~$0.01
+	Jina Reader
+	Парсинг 50 сайтов
+	~50 запросов
+	~$0.05 (токены)
+	OpenAI gpt-4o
+	Анализ кейса + тиеринг 50 компаний
+	~55 запросов
+	~$0.60
+	OpenAI gpt-4o-mini
+	Pre-filter 50 компаний
+	~50 запросов
+	~$0.01
+	Apollo
+	Поиск людей для T1-T2 (~10 компаний)
+	~10 запросов
+	бесплатно (поиск)
+	Итого
+	
+
+	
+
+	~$0.70 / кейс
+	
+
+Для трёх кейсов (MedKitDoc + Metrikus + E.ON) параллельно — ≈ $2 и 5–10 минут выполнения.
+Рекомендуемые модели OpenAI
+
+
+Шаг
+	Модель
+	Причина
+	Анализ кейса (шаг 1)
+	gpt-4o
+	Нужна точность структуры
+	Профиль компании (шаг 2)
+	gpt-4o
+	Много нюансов из разных источников
+	Генерация запросов (шаг 3)
+	gpt-4o
+	Качество запросов критично
+	Pre-filter (шаг 4)
+	gpt-4o-mini
+	Простая бинарная задача — дёшево
+	Тиеринг (шаг 5)
+	gpt-4o
+	Главный аналитический шаг
+	Value proposition (шаг 7)
+	gpt-4o
+	Нужно качество текста
+	n8n — альтернативная реализация
+Весь пайплайн можно реализовать в n8n без единой строки кода. Ниже — структура воркфлоу.
+
+
+#
+	Нода
+	Настройка
+	Выход
+	1
+	Manual Trigger
+	Передаёт URL кейса и case_name
+	case_url, case_name
+	2
+	HTTP → Jina
+	GET r.jina.ai/{case_url}, Accept: application/json
+	page markdown текст
+	3
+	OpenAI → Анализ
+	gpt-4o, промпт анализа кейса, JSON output
+	case_profile JSON
+	4
+	HTTP → Serper ×4
+	POST serper.dev/search, 4 запроса о компании
+	intel snippets
+	5
+	OpenAI → Профиль
+	gpt-4o, промпт профиля клиента
+	client_profile JSON
+	6
+	OpenAI → Запросы
+	gpt-4o, генерация 10 поисковых запросов
+	queries[]
+	7
+	SplitInBatches
+	Размер 1, обрабатывает каждый запрос
+	один запрос
+	8
+	HTTP → Serper
+	POST serper.dev/search, num=5
+	organic results[]
+	9
+	Code Node
+	Дедупликация по домену
+	unique URLs[]
+	10
+	SplitInBatches
+	Размер 1, Wait 200ms между запросами
+	один URL
+	11
+	HTTP → Jina
+	GET r.jina.ai/{url}, парсинг сайта
+	page_content
+	12
+	OpenAI → Pre-filter
+	gpt-4o-mini, yes/no
+	boolean
+	13
+	IF Node
+	Пропускает только relevant=yes
+	релевантные компании
+	14
+	OpenAI → Тиеринг
+	gpt-4o, тир + reason + confidence
+	tier JSON
+	15
+	IF Node
+	Разветвление: T1/T2 vs T3/T4
+	2 ветки
+	16
+	HTTP → Apollo
+	POST /mixed_people/search по домену
+	decision makers[]
+	17
+	OpenAI → Value Prop
+	gpt-4o, генерация outreach текста
+	value_proposition
+	18
+	Google Sheets / Airtable
+	Запись финальной базы по тирам
+	база данных
+	Справочник промптов
+Сводная таблица всех промптов пайплайна с рекомендуемыми параметрами.
+
+
+Шаг
+	Модель
+	Temp
+	System prompt (суть)
+	Формат ответа
+	1 — анализ кейса
+	gpt-4o
+	0
+	Извлечь структурированный профиль из текста кейса аутсорс-компании
+	JSON объект
+	2 — профиль клиента
+	gpt-4o
+	0
+	По результатам Serper построить профиль компании для outreach
+	JSON объект
+	3 — генерация запросов
+	gpt-4o
+	0.3
+	Сгенерировать Google-запросы для поиска похожих потенциальных клиентов
+	JSON массив строк
+	4 — pre-filter
+	gpt-4o-mini
+	0
+	Определить является ли страница продуктовой компанией (не агентством)
+	"yes" / "no"
+	5 — tiering
+	gpt-4o
+	0
+	Сравнить компанию с профилем кейса, присвоить тир T1–T4
+	JSON объект
+	7 — value prop
+	gpt-4o
+	0.4
+	Написать первое outreach-сообщение с конкретными деталями
+	Текст 3-4 предложения
