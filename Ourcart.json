@@ -1,0 +1,48 @@
+{
+    "company_name": "Ourcart",
+    "website": "https://ourcart.com/",
+    "founded": "unknown",
+    "stage": "unknown",
+    "total_funding": "unknown",
+    "last_round": {
+        "amount": "unknown",
+        "date": "unknown",
+        "investors": []
+    },
+    "product_description": "Storewards is a mobile app that rewards users with gift codes in exchange for grocery receipts. Users collect receipts from accepted stores, scan them through the app, and receive coins for each valid entry.",
+    "tech_stack_known": [
+        "Swift",
+        "Kotlin",
+        "Java",
+        "Firebase",
+        "AWS",
+        "REST API",
+        "UIKit",
+        "Realm",
+        "ML Kit",
+        "AVFoundation",
+        "CameraX",
+        "Alamofire",
+        "LiteRT",
+        "CoreLocation",
+        "Custom ReceiptScanLibrary SDK",
+        "Notification Services",
+        "Accessibility tools"
+    ],
+    "team_size": "2",
+    "key_people": [
+        {
+            "name": "Daniel Rejzner",
+            "title": "CEO",
+            "linkedin": "unknown"
+        }
+    ],
+    "region": "Israel",
+    "vertical": "E-Commerce",
+    "business_model": "B2C",
+    "outsource_signals": [
+        "Staff Augmentation",
+        "Ongoing Development",
+        "Hiring"
+    ]
+}

@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(source *)",
+      "Bash(uvicorn *)",
+      "Bash(sleep *)",
+      "Bash(curl *)",
+      "Bash(mkdir *)",
+      "Bash(mv *)",
+      "Bash(touch *)"
+    ]
+  },
+  "$version": 3
+}

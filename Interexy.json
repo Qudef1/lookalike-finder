@@ -1,0 +1,49 @@
+{
+    "company_name": "Interexy",
+    "website": "https://interexy.com",
+    "founded": "2017",
+    "stage": "bootstrapped",
+    "total_funding": "unknown",
+    "last_round": {
+        "amount": "unknown",
+        "date": "unknown",
+        "investors": []
+    },
+    "product_description": "Interexy is a custom software development company specializing in blockchain-driven development, Web3 mobile apps, and staff augmentation services, empowering businesses with innovative technology solutions.",
+    "tech_stack_known": [
+        "Swift",
+        "Kotlin",
+        "Java",
+        "Firebase",
+        "AWS",
+        "REST API",
+        "UIKit",
+        "Realm",
+        "ML Kit",
+        "AVFoundation",
+        "CameraX",
+        "Alamofire",
+        "LiteRT"
+    ],
+    "team_size": "unknown",
+    "key_people": [
+        {
+            "name": "Eugene Mahnach",
+            "title": "Co-founder",
+            "linkedin": "unknown"
+        },
+        {
+            "name": "Stan Sakharchuk",
+            "title": "Co-founder",
+            "linkedin": "unknown"
+        }
+    ],
+    "region": "Miami Beach, USA",
+    "vertical": "Software Development",
+    "business_model": "Service-based/Outsource",
+    "outsource_signals": [
+        "Staff Augmentation",
+        "Hiring",
+        "Partner with us"
+    ]
+}
