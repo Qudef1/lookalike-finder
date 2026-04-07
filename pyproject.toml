@@ -1,0 +1,19 @@
+[project]
+name = "lookalike-finder"
+version = "1.0.0"
+description = "Поиск компаний, похожих по профилю, с тированием"
+requires-python = ">=3.10"
+
+dependencies = [
+    "openai>=1.0.0",
+    "python-dotenv>=1.0.0",
+    "requests>=2.31.0",
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+]
+
+[project.scripts]
+lookalike = "main:main"
+
+[tool.setuptools.packages.find]
+include = ["app*"]

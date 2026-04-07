@@ -1,113 +1,99 @@
-# Lookalike Finder
+# 🔍 Lookalike Finder
 
-Пайплайн для автоматизированного поиска компаний — потенциальных клиентов Interexy — на основе анализа портфолио-кейсов.
+Поиск компаний, похожих по профилю, с автоматическим тированием.
 
-## Как это работает
+## Структура проекта
 
-Программа выполняет следующий пайплайн:
+```
+lookalike-finder/
+├── main.py                          # CLI входная точка
+├── .env                             # OPENAI_API_KEY
+├── pyproject.toml                   # зависимости
+│
+├── app/
+│   ├── core/                        # бизнес-логика
+│   │   ├── base_results.py          # Scrapling парсинг, Serper поиск
+│   │   ├── company_profile.py       # построение профиля компании
+│   │   ├── query_profiles_generation.py  # генерация поисковых запросов
+│   │   ├── sites_finder.py          # поиск кандидатов (GPT-4o + web search)
+│   │   └── company_tiering.py       # тирование компаний
+│   │
+│   ├── api/
+│   │   └── server.py                # FastAPI сервер + веб-интерфейс
+│   │
+│   └── output/                      # результаты пайплайна
+│       ├── company_profile.json
+│       ├── search_queries.json
+│       ├── similar_companies.md
+│       └── tier_report.md
+│
+└── examples/                        # примеры профилей
+```
 
-1. **Поиск сайта компании** — через Serper API находит официальный сайт по названию компании.
-2. **Парсинг сайта** — Scrapling загружает страницу и конвертирует HTML в Markdown.
-3. **Построение профиля** — OpenAI GPT-4o-mini анализирует содержимое сайта и дополнительные данные из Serper, формируя структурированный JSON-профиль компании (технологии, стек, бизнес-модель, регион и т.д.).
-4. **Генерация поисковых запросов** — LLM генерирует 10 специализированных запросов для поиска похожих компаний.
-5. **Поиск и парсинг похожих компаний** — Serper находит компании по запросам, Scrapling парсит их сайты.
-6. **Результат** — найденные компании сохраняются в Markdown-файле для дальнейшего анализа.
+## Пайплайн
+
+```
+1. build_company_profile()    → JSON-профиль компании
+2. generate_search_queries()  → 15 поисковых запросов
+3. find_similar_companies()   → GPT-4o web search + парсинг сайтов
+4. tier_companies()           → распределение по 5 тирам
+```
+
+### Тиры
+
+| Тир | Описание |
+|-----|----------|
+| **Tier 1** | Тот же продукт, тот же регион |
+| **Tier 2** | Тот же продукт, другой регион |
+| **Tier 3** | Похожий продукт, другой positioning |
+| **Tier 4** | Те же ключевые модули/интеграции |
+| **Tier 5** | Похожие технические/бизнес-сигналы |
 
 ## Установка
 
-### 1. Клонирование репозитория
-
 ```bash
-git clone https://github.com/D4Vinci/Scrapling.git
+python -m venv venv && source venv/bin/activate
+pip install openai python-dotenv requests fastapi uvicorn[standard]
 ```
 
-### 2. Создание виртуального окружения
-
-```bash
-python3 -m venv venv
-source venv/bin/activate  # На Windows: venv\Scripts\activate
+Создайте `.env`:
 ```
-
-### 3. Установка зависимостей
-
-```bash
-pip install -e ./Scrapling[all]
-pip install openai python-dotenv requests
-```
-
-### 4. Настройка API ключей
-
-Создайте файл `.env` в корне проекта:
-
-```env
-SERPER_API_KEY=ваш_ключ_от_serper.dev
-OPENAI_API_KEY=ваш_ключ_от_openai
+OPENAI_API_KEY=sk-proj-...
 ```
 
 ## Запуск
 
+### CLI
+
 ```bash
-python main.py
+python main.py                           # по умолчанию
+python main.py "Interexy MedKitDoc"      # конкретная компания
 ```
 
-Скрипт запускает полный пайплайн для компании `"Interexy MedKitDoc"` (можно изменить в `main.py`).
+### API сервер
 
-### Результаты
+```bash
+uvicorn app.api.server:app --reload --port 8000
+```
 
-После запуска в проекте появятся файлы:
+Откройте http://localhost:8000 — веб-интерфейс + Swagger docs на http://localhost:8000/docs
 
-| Файл | Описание |
-|---|---|
-| `company_profile.json` | Структурированный профиль компании |
-| `search_queries.json` | Сгенерированные поисковые запросы |
-| `similar_companies.md` | Найденные похожие компании |
-| `<Company Name>.md` | Исходный Markdown компании |
+### API эндпоинты
 
-## Структура проекта
+| Метод | Путь | Описание |
+|-------|------|----------|
+| `POST` | `/api/run` | Запустить пайплайн |
+| `GET`  | `/api/jobs` | Список всех задач |
+| `GET`  | `/api/jobs/{id}` | Статус и результат |
 
-### Основные файлы
+Пример:
+```bash
+curl -X POST http://localhost:8000/api/run \
+  -H "Content-Type: application/json" \
+  -d '{"company_name": "Interexy MedKitDoc"}'
+```
 
-| Файл | Назначение |
-|---|---|
-| **`main.py`** | **Точка входа.** Запускает полный пайплайн: профиль → запросы → поиск похожих компаний. Сохраняет результаты в файлы. |
-| **`company_profile.py`** | **Пайплайн построения профиля.** Содержит функции: `serper_search_additional_info()` (поиск данных о компании через Serper), `build_company_profile()` (анализ сайта + Serper → JSON-профиль через GPT-4o-mini), `build_full_pipeline()` (полный пайплайн: профиль → запросы → поиск). |
-| **`base_results.py`** | **Базовые утилиты для парсинга.** Содержит: `serper_find_company_url()` (поиск URL компании через Serper), `scrapling_fetch_markdown()` (загрузка и очистка страницы в Markdown через Scrapling), `clean_markdown_content()` (удаление меню/навигации из Markdown), `return_company_markdown()` (полный цикл: поиск → парсинг → сохранение). |
-| **`query_profiles_generation.py`** | **Генерация поисковых запросов.** Функция `generate_search_queries()` — через GPT-4o-mini создаёт 10 точных запросов для Serper на основе профиля компании. Запросы покрывают технологии, вертикаль, стадию, найм. |
-| **`sites_finder.py`** | **Поиск и парсинг похожих компаний.** Функция `find_similar_companies()` — ищет компании по запросам через Serper, парсит их сайты через Scrapling, возвращает сводный Markdown с описаниями. |
+## Стоимость
 
-### Выходные файлы (генерируются автоматически)
-
-| Файл | Описание |
-|---|---|
-| `company_page.md` | Markdown главной страницы компании |
-| `company_profile.json` | Структурированный JSON-профиль компании |
-| `search_queries.json` | Список поисковых запросов |
-| `similar_companies.md` | Найденные похожие компании |
-
-### Директории
-
-| Директория | Описание |
-|---|---|
-| `Scrapling/` | Библиотека Scrapling для парсинга сайтов (локальная копия). |
-| `venv/` | Виртуальное окружение Python. |
-| `__pycache__/` | Скомпилированные Python-модули. |
-
-## Зависимости
-
-- **Scrapling** (с опцией `[all]`) — парсинг веб-страниц
-- **openai** — генерация запросов и построение профилей
-- **requests** — HTTP-запросы к Serper API
-- **python-dotenv** — загрузка переменных окружения
-
-## Решение проблем
-
-| Проблема | Решение |
-|---|---|
-| `ModuleNotFoundError: No module named 'browserforge'` | Переустановите Scrapling: `pip install -e ./Scrapling[all] --force-reinstall` |
-| Сетевые ошибки (DNS) | Проверьте подключение: `ping google.com` |
-| Ошибка Serper API | Убедитесь, что `SERPER_API_KEY` установлен в `.env` |
-| Ошибка OpenAI API | Убедитесь, что `OPENAI_API_KEY` установлен в `.env` |
-
-## Лицензия
-
-Проект использует Scrapling под BSD License.
+~$0.50 за один кейс (GPT-4o + web_search tool).
+Время выполнения: 12–22 минуты.

@@ -10,48 +10,83 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 
 SYSTEM_PROMPT = """
 You are an expert in B2B lead generation and the technology market.
-You generate precise search queries for Google (via Serper API) that target company websites.
+You generate precise, targeted Google search queries to find startup and company websites.
 Goal: find startups and companies building similar products that may need external development teams.
-Focus on queries that return actual company homepages in search results, not lists or articles.
+Design queries that return actual company homepages, funding announcements, and startup profiles — NOT articles, lists, or directories.
 Return ONLY a JSON object with 'queries' key containing an array of strings, without explanations.
 """
 
 QUERY_GEN_USER = """
-Based on the case profile, generate 10 search queries for Google that will find websites of startups and companies building similar products.
+Based on the case profile, generate 15 highly targeted Google search queries to find websites of startups and companies building similar products.
 
 Case Profile:
 {case_profile}
 
-Rules for queries:
-- DO NOT use general words ("app development company")
-- Use specific technical terms from the profile
-- Cover different angles: by technology, by vertical, by stage, by hiring
-- Some queries should search for companies at the stage of looking for developers (funding announcement, hiring CTO, MVP development)
-- Include 2-3 queries with site:linkedin.com for startup search
-- IMPORTANT: Queries must be designed to return company websites in organic search results, not top lists, articles, or directories. Focus on finding actual company homepages.
+RULES FOR QUERY GENERATION:
 
-Example of good queries for telehealth + Bluetooth:
-["B2B telemedicine Bluetooth medical devices mobile app startup 2024",
- "remote patient monitoring IoT mobile app seed funding",
- "telemedicine Bluetooth wearables B2B startup"]
+1. **Use `site:` operator for structured sources** (3-4 queries):
+   - `site:crunchbase.com` — to find funded startups
+   - `site:linkedin.com/company` — to find company pages
+   - `site:angel.co` or `site:producthunt.com` — for startup discovery
+   Example: `site:crunchbase.com telehealth remote patient monitoring seed funding`
 
-Return a JSON object with key 'queries' containing an array of 10 strings.
+2. **Focus on funding signals** (3-4 queries):
+   - Include words: `funding`, `raised`, `seed`, `Series A`, `investment`
+   - Combine with technology/vertical from the profile
+   Example: `remote patient monitoring startup funding seed`
+
+3. **Include technology + vertical combinations** (3-4 queries):
+   - Use specific tech terms from the profile (e.g., `Bluetooth`, `IoT`, `AI`)
+   - Combine with industry vertical and business model
+   Example: `healthtech startup telemedicine B2B IoT Germany`
+
+4. **Target hiring/outsource signals** (2-3 queries):
+   - Include: `hiring`, `looking for developers`, `expanding team`, `CTO`
+   Example: `B2B telemedicine startup hiring developers Germany`
+
+5. **Geographic targeting** (1-2 queries):
+   - Include region/country from profile
+   Example: `healthtech startup Germany funding 2024`
+
+CRITICAL RULES:
+- DO NOT use generic terms like "company", "development", "software"
+- Use SPECIFIC technical terms from the profile
+- Each query should be 5-8 words max
+- Queries must be in English
+- Include a mix of: site: operators, funding signals, tech stack, vertical, geography
+- Designed to return company homepages, not top lists or articles
+
+EXAMPLE of excellent queries for a telehealth + Bluetooth + Germany profile:
+[
+  "site:crunchbase.com telehealth Bluetooth medical devices Germany",
+  "remote patient monitoring startup funding seed",
+  "B2B telemedicine startup Germany funding",
+  "B2B SaaS medical devices startup funding raised",
+  "healthtech startup telemedicine B2B IoT Germany",
+  "site:linkedin.com/company telemedicine remote patient monitoring",
+  "telemedicine Bluetooth wearables B2B startup hiring",
+  "site:crunchbase.com digital health Germany seed funding",
+  "remote monitoring IoT healthcare startup Series A",
+  "B2B telemedicine platform Germany looking for developers"
+]
+
+Return a JSON object with key 'queries' containing an array of 15 strings.
 """
 
 def generate_search_queries(case_profile: dict) -> list[str]:
-    """Генерирует 10 поисковых запросов на основе профиля компании."""
+    """Генерирует 15 поисковых запросов на основе профиля компании."""
     case_profile_str = json.dumps(case_profile, ensure_ascii=False, indent=2)
     user_prompt = QUERY_GEN_USER.format(case_profile=case_profile_str)
     
     try:
         response = client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt}
             ],
-            max_tokens=1000,
-            temperature=0.5,
+            max_tokens=1500,
+            temperature=0.6,
             response_format={
                 "type": "json_schema",
                 "json_schema": {

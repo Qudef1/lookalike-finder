@@ -4,9 +4,10 @@ import requests
 import asyncio
 from openai import OpenAI
 from dotenv import load_dotenv
-from base_results import return_company_markdown
-from query_profiles_generation import generate_search_queries
-from sites_finder import find_similar_companies
+from app.core.base_results import return_company_markdown
+from app.core.query_profiles_generation import generate_search_queries
+from app.core.sites_finder import find_similar_companies
+from app.core.company_tiering import tier_companies, generate_tier_report
 
 load_dotenv()
 SERPER_API = os.getenv("SERPER_API")
@@ -52,8 +53,9 @@ def build_company_profile(company_name: str) -> dict:
     
     # Промпт для GPT-4o
     prompt = f"""
-Act as a Senior Market Intelligence Analyst. Your task is to extract structured data from the provided Markdown content and additional search results to create a comprehensive company profile.
-
+Act as a Senior Market Intelligence Analyst from Interexy Company. Your task is to extract structured data from the provided Markdown content and additional search results to create a comprehensive company profile.
+You need to make profile of company that Interexy was working with. You have a case in which described what especially Interexy did for this company, what was the project about, what technologies were used, how big was the team and etc. You need to extract all possible information from this case and also use additional search results to fill in the gaps.
+Do not make profile of Interexy. 
 Markdown Content:
 {md_content}
 
@@ -115,37 +117,44 @@ Generate the JSON now:
         profile_json = response.choices[0].message.content.strip()
         # Убедимся, что это JSON
         profile = json.loads(profile_json)
+        with open(f"{profile.get('company_name', 'unknown')}.json", "w", encoding="utf-8") as f:
+            json.dump(profile, f, indent=4, ensure_ascii=False)
         return profile
     except Exception as e:
         print(f"Ошибка при генерации профиля: {e}")
         return {}
 
 def build_full_pipeline(company_name: str) -> dict:
-    """Полный пайплайн: профиль -> запросы -> поиск похожих компаний."""
+    """Полный пайплайн: профиль → запросы → поиск → тирование."""
     # Шаг 1: Построить профиль
     profile = build_company_profile(company_name)
     if not profile:
         return {"error": "Не удалось построить профиль"}
-    
+
     # Шаг 2: Генерировать поисковые запросы
     queries = generate_search_queries(profile)
     if not queries:
         return {"profile": profile, "error": "Не удалось сгенерировать запросы"}
-    
-    # Шаг 3: Найти похожие компании
-    similar_md = asyncio.run(find_similar_companies(queries))
-    
+
+    # Шаг 3: Найти похожие компании (передаём профиль для контекста)
+    similar_md = asyncio.run(find_similar_companies(queries, case_profile=profile))
+
+    # Сохраняем MD для тирования
+    with open("similar_companies.md", "w", encoding="utf-8") as f:
+        f.write(similar_md)
+
+    # Шаг 4: Тирование компаний
+    print("\n[Пайплайн] Запуск тирования компаний...")
+    tier_result = asyncio.run(tier_companies("similar_companies.md", profile))
+
+    tier_report_md = generate_tier_report(tier_result, profile.get("company_name", company_name))
+
     return {
         "profile": profile,
         "queries": queries,
-        "similar_companies_md": similar_md
+        "similar_companies_md": similar_md,
+        "tier_report_md": tier_report_md,
+        "tier_summary": tier_result.get("summary", {}),
+        "tiers": {f"tier_{t}": tier_result.get(f"tier_{t}", {}).get("companies", []) for t in range(1, 6)},
     }
 
-if __name__ == "__main__":
-    company_name = "Interexy MedKitDoc"
-    result = build_full_pipeline(company_name)
-    print(json.dumps(result, indent=2, ensure_ascii=False))
-    # Сохранить MD в файл
-    if "similar_companies_md" in result:
-        with open("similar_companies.md", "w", encoding="utf-8") as f:
-            f.write(result["similar_companies_md"])
