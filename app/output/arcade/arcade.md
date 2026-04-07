@@ -73,7 +73,7 @@ Our service portfolio covers an entire software development life cycle and meets
 
   + [About us](https://interexy.com/about-us)
   + [Process](https://interexy.com/process)
-Storewards is a rewards app that allows users to earn gift codes by uploading grocery receipts. Interexy provided iOS and Android developers via outstaffing to support ongoing development, implement new features, and improve accessibility and UX across the app.
+Arcade is a pioneering ‘prompt-to-product’ marketplace, revolutionizing the jewelry market with its advanced design-to-manufacturing AI technologies. Arcade aims to create magical and interactive shopping experiences for people everywhere. Interexy played a significant role in this project by developing the website's front end and performing thorough testing.
 
 Project overview
 Project details
@@ -82,170 +82,149 @@ Project details
 Services used:
 
 [AI](https://interexy.com/portfolio/ai) 
-[AWS](https://interexy.com/portfolio/aws) 
 [E-Commerce](https://interexy.com/portfolio/e-commerce) 
 [FinTech](https://interexy.com/portfolio/fintech) 
 [Firebase](https://interexy.com/portfolio/firebase) 
-[Kotlin](https://interexy.com/portfolio/kotlin) 
-[Mobile](https://interexy.com/portfolio/mobile) 
+[NextJS](https://interexy.com/portfolio/nextjs) 
+[Python](https://interexy.com/portfolio/python) 
 [Staff Augmentation](https://interexy.com/portfolio/staff-augmentation) 
-[Swift](https://interexy.com/portfolio/swift)
+[Stripe](https://interexy.com/portfolio/stripe) 
+[TypeScript](https://interexy.com/portfolio/typescript) 
+[Web](https://interexy.com/portfolio/web)
 
 About the project:
 
 Client: 
-[Ourcart](https://ourcart.com/)
+[Arcade](https://www.arcade.ai/)
 
 Location: 
-Israel
+USA
 
 Industry: 
-E-Commerce
+Artificial Intelligence, E-Commerce
 
 Team Size: 
-Android developer, iOS developer
+3 team members
 
 Project Duration: 
-5 years
+9 months
 
-Ourcart needed to support and improve their mobile app [Storewards](https://apps.apple.com/il/app/storewards/id1530068434), which had already been released and gained popularity across several markets. The goal was to refine the app by fixing bugs, integrating new features, implementing accessibility improvements, and supporting a full redesign on both iOS and Android platforms.
-
-Project functionality
-Project idea and features
------------------------------------------------
-
-Storewards is a mobile app that rewards users with gift codes in exchange for grocery receipts. Users collect receipts from accepted stores, scan them through the app, and receive coins for each valid entry. The app now partners with retailers across 18 countries.
-
-The coins can then be exchanged for a variety of rewards depending on the region, such as PayPal cashouts, Amazon gift cards, and even physical items like food or headphones. The app also offers incentives like daily bonuses, referral rewards, and level-based perks.
-
-Beyond its gamified loyalty model, Storewards also supports Ourcart’s broader mission. The app helps gather anonymized receipt data, offering insights into real-world consumer spending patterns. This data enables global brands to better understand their customers and improve their marketing strategies.
-
-
+Arcade is a B2C platform designed to revolutionize the jewelry market with its innovative prompt-to-product solution. Users can enter a search query and use AI to generate unique jewelry designs, including rings, bracelets, pendants, and more. The platform allows users to purchase jewelry directly through the site, create collections, and become sellers, offering a comprehensive and engaging experience for jewelry enthusiasts.
 
 Project delivery
-Development highlights
----------------------------------------
+Development process
+------------------------------------
 
-### Ongoing Development
+Interexy was responsible for developing the front end of the website almost from scratch. This involved creating user-friendly interfaces for order management, product pages, and shopping baskets. Our developers implemented custom elements to ensure a seamless and engaging user experience.
 
----
+Our team provided both manual and automated QA services to ensure the platform’s reliability and performance. We conducted thorough testing to identify and resolve bugs, ensuring a smooth user experience.
 
-Our iOS and Android developers provided continuous development support and updates for the Storewards app, addressing bugs, refining performance, and implementing new functionality.
+Following a gradual release to small focus groups, the platform is now fully launched. We continue to refine its functionalities, ensuring a seamless experience for users, sellers, and influencers as the platform scales.
 
-### Camera SDK Integration
 
----
 
-One of the major updates was replacing the built-in camera module with a more stable and reliable SDK. This significantly improved the receipt scanning flow and overall app stability.
+Project functionality
+Unique Features
+-------------------------------------
 
-### UI Redesign & Flow Updates
-
----
-
-Our team implemented a complete redesign of the user interface and updated the user flow on both platforms. The refreshed design has already been released and adopted by users.
-
-### Accessibility Improvements
+### 1. AI-Generated Designs
 
 ---
 
-To comply with accessibility standards, we enhanced the app with screen reader support and a high-contrast color scheme, improving usability for visually impaired users.
+Users can leverage AI to create unique jewelry designs, adding a personalized touch to their shopping experience.
 
-### Image Extension Support
+### 2. User Roles and Engagement
 
 ---
 
-We also helped implement a feature that allows users to upload receipt photos directly from image extensions, streamlining the user experience and reducing friction.
+The platform supports various user roles, including customers, jewelry makers, designers, and influencers. Any user can create collections, save them to their gallery, and sell them.
+
+### 3. Influencer Integration
+
+---
+
+Influencers have dedicated pages where they can promote their collections, created through the platform, driving engagement and sales.
 
 Tech stack 
 The scope of the project
 ------------------------------------
 
-### Programming Languages:
+### Front-end:
 
-* Swift;
+* NextJS;
+* TypeScript;
+* DatoCMS;
 
-* Kotlin;
+* Tailwind;
+* REST;
+* Stripe;
 
-* Java.
+* GraphQL;
+* JEST;
+* Yotpo.
 
-### Cloud & Services:
+### Back-end:
+
+* Python;
+* Django;
+* Sendgrid;
+
+* Redis;
+* Elastic Search;
+* Twilio;
 
 * Firebase;
+* Pytest.
 
-* AWS;
+Empower your business with cutting-edge AI solutions!
 
-* REST API.
-
-### Frameworks & Libraries:
-
-* UIKit;
-* Realm;
-* ML Kit;
-
-* AVFoundation;
-* CameraX;
-
-* Alamofire;
-* LiteRT.
-
-### Other Tools & Features:
-
-* CoreLocation;
-* Custom ReceiptScanLibrary SDK;
-
-* Notification Services;
-
-* Accessibility tools;
-
-Looking for experienced developers to boost your app’s performance and user experience?
-
-[Get started](https://interexy.com/contact-us/)
+[Let’s talk](https://interexy.com/contact-us/)
 
 Results
 Project outcome
 -----------------------
 
-The redesign has been successfully launched, and Storewards continues to be actively supported by our team. Thanks to the new SDK integration, UI improvements, and accessibility updates, the app offers a more reliable and inclusive experience for thousands of daily users.
+The full release of Arcade has been a success, providing a user-friendly, AI-powered platform that has already received positive feedback from both customers and influencers. The project has also raised an impressive total of $17M in funding.
 
-"They are good developers with a great attitude and they are very dedicated."
+"They had a strong pool of diverse development talent, readily available on short notice."
 
-Although the web app is still in development, Interexy LLC was able to deliver quality mobile applications on time. Their workflow is effective throughout the partnership.
+Interexy helped the client launch their MVP. The team impressed the client with their diverse pool of talented developers, who were readily available on short notice. They also communicated with the client through email, messaging apps, and online meetings.
 
-Daniel Rejzner
+Anonymous
 
-CEO, [Ourcart](https://ourcart.com/)
+VP of Engineering, eCommerce
 
-[Full review](https://clutch.co/go-to-review/f5da1208-44d8-4ca1-879c-acae3f99dcec/135046)
+[Full review](https://clutch.co/go-to-review/f5da1208-44d8-4ca1-879c-acae3f99dcec/303196)
 
-18
-Countries of operation
-
-2
+3
 Interexy team members
 
-5
-Years of development
+1
+Year of development
+
+$17M
+In funding
 
 More case studies
 -----------------
 
-### Arcade
+### OtherWorlds.ai
 
-Arcade is a pioneering ‘prompt-to-product’ marketplace, revolutionizing the jewelry market with its advanced design-to-manufacturing AI technologies. Arcade aims to create magical and interactive shopping experiences for people everywhere. Interexy played a significant role in this project by developing the website's front end and performing thorough testing.
+OtherWorlds.ai is an iOS application allowing users to create immersive 3D and AR models from photos using photogrammetry, Lidar, and AI technologies.
 
-[Learn more](https://interexy.com/case/arcade/)
+[Learn more](https://interexy.com/case/otherworlds/)
 
-### 15SOF
+### REALTKN
 
-15SOF is a mobile app that allows sports fans to relive and share their moments on live event screens and game broadcasts. Interexy optimized the app’s backend, reduced maintenance costs, and improved performance. As a result, 15SOF achieved faster development and greater overall functionality.
+Interexy created a robust asset engagement ecosystem allowing users to invest in various real-world assets in digital format. The REALTKN web app simplifies market participants’ access to previously inaccessible investment opportunities.
 
-[Learn more](https://interexy.com/case/15sof/)
+[Learn more](https://interexy.com/case/next-street/)
 
-### Paired
+### AcneAway
 
-Paired is a mobile game that connects Canadians through live, weekly puzzle challenges for cash prizes. Our outstaffed developers took part in front-end and back-end development, optimizing performance and enhancing user experience. We ensured the app’s scalability and reliability, delivering a seamless and enjoyable gaming experience.
+AcneAway is a New York-based startup that has been founded by two men who strive to bring the difference into the skincare space.
 
-[Learn more](https://interexy.com/case/interactive-real-time-gaming-app/)
+[Learn more](https://interexy.com/case/acneaway/)
 
 
 
@@ -319,4 +298,4 @@ You can attach 1 file 2 MB overall.
 Formats: doc, docx, pdf, ppt, pptx.
 
 [Book a call](https://interexy.com/contact-us/) 
-[[email protected]](/cdn-cgi/l/email-protection#6e1d0f020b1d2e07001a0b1c0b1617400d0103)
+[[email protected]](/cdn-cgi/l/email-protection#641705080117240d0a100116011c1d4a070b09)

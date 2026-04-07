@@ -15,7 +15,7 @@ import json
 import asyncio
 from openai import OpenAI
 from dotenv import load_dotenv
-from app.core.base_results import scrapling_fetch_markdown
+from app.core.base_results import scrapling_fetch_markdown, get_output_dir
 
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -55,7 +55,7 @@ def parse_similar_companies_md(md_path: str) -> list[dict]:
 
 # ─── Сбор профилей компаний ────────────────────────────────────────────────
 
-async def build_candidate_profile(url: str, candidate_info: dict) -> dict:
+async def build_candidate_profile(url: str, candidate_info: dict, case_name: str = None) -> dict:
     """Спарсить сайт кандидата и построить компактный профиль через GPT-4o."""
     try:
         md = await scrapling_fetch_markdown(url)
@@ -216,6 +216,7 @@ TIER_NAMES = {
 async def tier_companies(
     md_path: str,
     base_profile: dict,
+    case_name: str = "unknown",
     max_companies: int = 20,
 ) -> dict:
     """
@@ -245,7 +246,7 @@ async def tier_companies(
     profiles = []
     for i, cand in enumerate(candidates):
         print(f"  [{i+1}/{len(candidates)}] Профиль: {cand['url']}")
-        profile = await build_candidate_profile(cand["url"], cand)
+        profile = await build_candidate_profile(cand["url"], cand, case_name=case_name)
         profiles.append(profile)
 
     # Шаг 3: Тирование

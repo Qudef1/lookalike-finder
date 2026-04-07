@@ -9,6 +9,17 @@ from Scrapling.scrapling.core.ai import ScraplingMCPServer
 load_dotenv()
 SERPER_API = os.getenv("SERPER_API")
 
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+OUTPUT_ROOT = os.path.join(PROJECT_ROOT, "app", "output")
+
+
+def get_output_dir(case_name: str) -> str:
+    """Создаёт и возвращает папку для кейса: app/output/{case_name}/."""
+    safe_name = case_name.lower().replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
+    case_dir = os.path.join(OUTPUT_ROOT, safe_name)
+    os.makedirs(case_dir, exist_ok=True)
+    return case_dir
+
 COMPANY_NAME = "Interexy MedKitDoc"
 
 
@@ -175,6 +186,27 @@ def serper_find_company_url(company_name: str) -> str | None:
             return kg["website"]
 
     return None
+
+
+def extract_domain(url: str) -> str:
+    """Извлекает домен из URL для имени файла."""
+    import re
+    match = re.search(r'(?:https?://)?(?:www\.)?([^/:]+)', url)
+    if match:
+        return match.group(1).replace('.', '_')
+    return "unknown"
+
+
+async def return_company_markdown_from_url(url: str, case_name: str = "unknown") -> str:
+    """Парсит сайт по прямому URL и сохраняет MD."""
+    md = await scrapling_fetch_markdown(url)
+
+    safe_name = case_name.lower().replace(' ', '_').replace('/', '_').replace('(', '').replace(')', '')
+    output_path = os.path.join(get_output_dir(case_name), f"{safe_name}.md")
+    with open(output_path, "w", encoding="utf-8") as f:
+        f.write(md)
+
+    return md
 
 async def scrapling_fetch_markdown(url: str) -> str:
     response = await ScraplingMCPServer.get(

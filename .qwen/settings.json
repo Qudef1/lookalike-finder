@@ -9,7 +9,9 @@
       "Bash(curl *)",
       "Bash(mkdir *)",
       "Bash(mv *)",
-      "Bash(touch *)"
+      "Bash(touch *)",
+      "Bash(pkill *)",
+      "Bash(cd *)"
     ]
   },
   "$version": 3

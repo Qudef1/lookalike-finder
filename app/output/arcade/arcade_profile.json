@@ -1,0 +1,45 @@
+{
+    "company_name": "Arcade",
+    "website": "https://www.arcade.ai/",
+    "founded": "unknown",
+    "stage": "Series A",
+    "total_funding": "$25M",
+    "last_round": {
+        "amount": "$14M",
+        "date": "unknown",
+        "investors": [
+            "Kleiner Perkins",
+            "Laude"
+        ]
+    },
+    "product_description": "Arcade is a pioneering ‘prompt-to-product’ marketplace that revolutionizes the jewelry market with advanced design-to-manufacturing AI technologies, allowing users to generate unique jewelry designs and purchase them directly through the platform.",
+    "tech_stack_known": [
+        "NextJS",
+        "TypeScript",
+        "Python",
+        "Django",
+        "Firebase",
+        "Stripe",
+        "GraphQL",
+        "REST"
+    ],
+    "team_size": "3",
+    "key_people": [
+        {
+            "name": "Alex Salazar",
+            "title": "Co-founder",
+            "linkedin": "unknown"
+        },
+        {
+            "name": "Sam Partee",
+            "title": "Co-founder",
+            "linkedin": "unknown"
+        }
+    ],
+    "region": "USA",
+    "vertical": "Artificial Intelligence, E-Commerce",
+    "business_model": "Marketplace",
+    "outsource_signals": [
+        "Staff Augmentation"
+    ]
+}

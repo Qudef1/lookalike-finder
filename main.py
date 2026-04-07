@@ -2,58 +2,46 @@
 Lookalike Finder — главный пайплайн.
 
 Запуск:
-    python main.py
+    python main.py                                    # интерактивный режим
+    python main.py "URL" "Company Name"              # быстрый запуск
 
-Переменные окружения (.env):
-    SERPER_API_KEY  — ключ от Serper.dev
-    OPENAI_API_KEY  — ключ от OpenAI
+Примеры:
+    python main.py "https://interexy.com/case/medkitdoc" "MedKitDoc"
 """
 
 import os
+import sys
 import json
 from app.core.company_profile import build_full_pipeline
 
-OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "app", "output")
 
-
-def main(company_name: str = "Interexy MedKitDoc"):
+def main(case_url: str = None, company_name: str = None):
     """Запуск пайплайна."""
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    # Интерактивный режим, если аргументы не переданы
+    if not case_url or not company_name:
+        print("🔍 Lookalike Finder — поиск похожих компаний")
+        print("=" * 50)
+        case_url = input("📎 URL страницы кейса: ").strip()
+        company_name = input("🏢 Название компании: ").strip()
 
-    print(f"[Пайплайн] Запуск для компании: {company_name}")
+        if not case_url or not company_name:
+            print("❌ URL и название компании обязательны.")
+            return
 
-    result = build_full_pipeline(company_name)
+    result = build_full_pipeline(case_url, company_name)
 
     if "error" in result:
-        print(f"[Ошибка] {result['error']}")
+        print(f"\n[Ошибка] {result['error']}")
         return
 
-    # Сохраняем результаты
-    with open(os.path.join(OUTPUT_DIR, "company_profile.json"), "w", encoding="utf-8") as f:
-        json.dump(result["profile"], f, ensure_ascii=False, indent=2)
-    print(f"[Профиль] Сохранён: app/output/company_profile.json")
-
-    with open(os.path.join(OUTPUT_DIR, "search_queries.json"), "w", encoding="utf-8") as f:
-        json.dump(result["queries"], f, ensure_ascii=False, indent=2)
-    print(f"[Запросы] Сохранены: app/output/search_queries.json")
-
-    if "similar_companies_md" in result:
-        with open(os.path.join(OUTPUT_DIR, "similar_companies.md"), "w", encoding="utf-8") as f:
-            f.write(result["similar_companies_md"])
-        print(f"[Компании] Сохранены: app/output/similar_companies.md")
-
-    if "tier_report_md" in result:
-        with open(os.path.join(OUTPUT_DIR, "tier_report.md"), "w", encoding="utf-8") as f:
-            f.write(result["tier_report_md"])
-        print(f"[Тирование] Сохранён: app/output/tier_report.md")
-
-    if "tier_summary" in result:
-        print(f"[Тирование] {json.dumps(result['tier_summary'], ensure_ascii=False)}")
-
-    print("[Пайплайн] Завершён успешно")
+    # Вывод сводки
+    print(f"\n📁 Папка кейса: {result['output_dir']}")
+    print(f"📊 Тиры: {json.dumps(result.get('tier_summary', {}), ensure_ascii=False)}")
+    print("\n✅ Готово!")
 
 
 if __name__ == "__main__":
-    import sys
-    company = sys.argv[1] if len(sys.argv) > 1 else "Interexy MedKitDoc"
-    main(company)
+    if len(sys.argv) >= 3:
+        main(case_url=sys.argv[1], company_name=sys.argv[2])
+    else:
+        main()

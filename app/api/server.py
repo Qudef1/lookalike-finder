@@ -2,7 +2,8 @@
 FastAPI сервер для запуска Lookalike Finder пайплайна.
 
 Запуск:
-    uvicorn server:app --reload --port 8000
+    cd /home/qudef/data_100/lookalike-finder
+    uvicorn app.api.server:app --reload --port 8000
 
 Эндпоинты:
     POST   /api/run           — запустить пайплайн для компании
@@ -10,7 +11,10 @@ FastAPI сервер для запуска Lookalike Finder пайплайна.
     GET    /                  — веб-интерфейс
 """
 
+import sys
 import os
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 import json
 import asyncio
 import uuid
@@ -30,6 +34,7 @@ jobs: dict[str, dict] = {}
 
 
 class RunRequest(BaseModel):
+    case_url: str
     company_name: str
 
 
@@ -41,6 +46,7 @@ class RunResponse(BaseModel):
 
 class JobStatus(BaseModel):
     job_id: str
+    case_url: str
     company_name: str
     status: str  # pending | running | done | failed
     created_at: str
@@ -49,17 +55,18 @@ class JobStatus(BaseModel):
     error: Optional[str] = None
 
 
-def _run_pipeline(job_id: str, company_name: str):
+def _run_pipeline(job_id: str, case_url: str, company_name: str):
     """Фоновое выполнение пайплайна."""
     jobs[job_id]["status"] = "running"
     jobs[job_id]["message"] = "Пайплайн запущен..."
 
     print(f"\n{'='*60}")
-    print(f"[JOB {job_id[:8]}] Запуск для компании: {company_name}")
+    print(f"[JOB {job_id[:8]}] Кейс: {company_name}")
+    print(f"[JOB {job_id[:8]}] URL:  {case_url}")
     print(f"{'='*60}")
 
     try:
-        result = build_full_pipeline(company_name)
+        result = build_full_pipeline(case_url, company_name)
 
         if "error" in result:
             jobs[job_id]["status"] = "failed"
@@ -82,17 +89,9 @@ def _run_pipeline(job_id: str, company_name: str):
 
 
 def _save_pipeline_results(job_id: str, result: dict):
-    """Сохраняет результаты пайплайна в файлы."""
-    output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "app", "output")
-    if "similar_companies_md" in result:
-        with open(os.path.join(output_dir, "similar_companies.md"), "w", encoding="utf-8") as f:
-            f.write(result["similar_companies_md"])
-    if "tier_report_md" in result:
-        with open(os.path.join(output_dir, "tier_report.md"), "w", encoding="utf-8") as f:
-            f.write(result["tier_report_md"])
-    if "profile" in result:
-        with open(os.path.join(output_dir, "company_profile.json"), "w", encoding="utf-8") as f:
-            json.dump(result["profile"], f, ensure_ascii=False, indent=2)
+    """Сохраняет результаты пайплайна (уже сохранены в папку кейса)."""
+    # Файлы уже сохранены в app/output/{case_name}/ внутри пайплайна
+    pass
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -115,6 +114,7 @@ async def index():
         .card { background: #1e293b; border: 1px solid #334155; border-radius: 12px;
                 padding: 1.5rem; margin-bottom: 1.5rem; }
         label { display: block; font-weight: 500; margin-bottom: 0.5rem; color: #cbd5e1; }
+        .hint { font-size: 0.8rem; color: #64748b; margin-bottom: 0.5rem; }
         input[type="text"] { width: 100%; padding: 0.75rem 1rem; border-radius: 8px;
             border: 1px solid #475569; background: #0f172a; color: #e2e8f0; font-size: 1rem;
             outline: none; transition: border-color 0.2s; }
@@ -152,9 +152,15 @@ async def index():
         <p class="subtitle">Поиск компаний, похожих по профилю</p>
 
         <div class="card">
-            <label for="company">Название компании</label>
-            <input type="text" id="company" placeholder="Например: Interexy MedKitDoc"
+            <label for="caseUrl">📎 URL страницы кейса</label>
+            <p class="hint">Ссылка на страницу кейса на сайте Interexy</p>
+            <input type="text" id="caseUrl" placeholder="https://interexy.com/case/medkitdoc">
+
+            <label for="companyName" style="margin-top:1rem;">🏢 Название компании</label>
+            <p class="hint">Название компании-клиента из кейса</p>
+            <input type="text" id="companyName" placeholder="MedKitDoc"
                    onkeydown="if(event.key==='Enter') runPipeline()">
+
             <button id="runBtn" onclick="runPipeline()">Запустить пайплайн</button>
             <div id="status" class="status"></div>
         </div>
@@ -164,8 +170,9 @@ async def index():
 
     <script>
         async function runPipeline() {
-            const company = document.getElementById('company').value.trim();
-            if (!company) { alert('Введите название компании'); return; }
+            const caseUrl = document.getElementById('caseUrl').value.trim();
+            const companyName = document.getElementById('companyName').value.trim();
+            if (!caseUrl || !companyName) { alert('Заполните оба поля'); return; }
 
             const btn = document.getElementById('runBtn');
             const status = document.getElementById('status');
@@ -178,7 +185,7 @@ async def index():
                 const resp = await fetch('/api/run', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ company_name: company })
+                    body: JSON.stringify({ case_url: caseUrl, company_name: companyName })
                 });
                 const data = await resp.json();
                 status.innerHTML = `<span class="spinner">⟳</span> Задача: ${data.job_id.slice(0,8)}<br>Статус: ${data.status}`;
@@ -203,7 +210,7 @@ async def index():
                 if (data.status === 'done') {
                     clearInterval(interval);
                     status.className = 'status visible done';
-                    status.textContent = `✅ Готово! Найдено компаний: ${data.result?.queries?.length || 0} запросов`;
+                    status.textContent = `✅ Готово! Папка: ${data.result?.output_dir || 'app/output/'}`;
                     btn.disabled = false;
                     btn.textContent = 'Запустить пайплайн';
                 } else if (data.status === 'failed') {
@@ -248,6 +255,7 @@ async def run_pipeline(req: RunRequest, bg: BackgroundTasks):
     job_id = str(uuid.uuid4())
     jobs[job_id] = {
         "job_id": job_id,
+        "case_url": req.case_url,
         "company_name": req.company_name,
         "status": "pending",
         "created_at": datetime.now().isoformat(),
@@ -256,7 +264,7 @@ async def run_pipeline(req: RunRequest, bg: BackgroundTasks):
         "error": None,
         "message": "",
     }
-    bg.add_task(_run_pipeline, job_id, req.company_name)
+    bg.add_task(_run_pipeline, job_id, req.case_url, req.company_name)
     return RunResponse(
         job_id=job_id,
         status="pending",
@@ -270,6 +278,7 @@ async def list_jobs():
     return [
         {
             "job_id": j["job_id"],
+            "case_url": j["case_url"],
             "company_name": j["company_name"],
             "status": j["status"],
             "created_at": j["created_at"],
@@ -286,6 +295,7 @@ async def get_job(job_id: str):
     j = jobs[job_id]
     return {
         "job_id": j["job_id"],
+        "case_url": j["case_url"],
         "company_name": j["company_name"],
         "status": j["status"],
         "created_at": j["created_at"],
