@@ -182,7 +182,7 @@ def build_full_pipeline(case_url: str, company_name: str) -> dict:
 
     # ── Шаг 3: Поиск похожих компаний ────────────────────────────
     print("\n[3/4] Поиск похожих компаний...")
-    similar_md = asyncio.run(find_similar_companies(queries[:2], case_profile=profile))
+    similar_md = asyncio.run(find_similar_companies(queries, case_profile=profile))
 
     # Сохраняем похожие компании
     similar_path = os.path.join(output_dir, f"similar_companies_{safe_name}.md")
